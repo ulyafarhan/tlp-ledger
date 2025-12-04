@@ -36,7 +36,7 @@ export const ExcelGenerator = {
       { header: 'No', key: 'no', width: 5 },
       { header: 'Tanggal', key: 'date', width: 15 },
       { header: 'Tipe', key: 'type', width: 10 },
-      { header: 'Uraian / Keterangan', key: 'desc', width: 40 },
+      { header: 'Nama Barang', key: 'desc', width: 40 },
       { header: 'Kategori', key: 'cat', width: 15 },
       { header: 'Pemasukan (Debet)', key: 'in', width: 20 },
       { header: 'Pengeluaran (Kredit)', key: 'out', width: 20 },
@@ -202,7 +202,6 @@ export const ExcelGenerator = {
     // 10. GENERATE & DOWNLOAD
     const buffer = await workbook.xlsx.writeBuffer();
     const fileName = `Laporan-${appStore.shopName.replace(/\s+/g, '-')}-${format(new Date(), 'yyyyMMdd')}.xlsx`;
-    
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

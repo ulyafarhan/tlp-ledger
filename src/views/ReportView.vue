@@ -4,7 +4,7 @@ import { appStore } from '@/stores/useAppStore';
 import { ReportGenerator } from '@/services/ReportGenerator';
 import { formatRupiah } from '@/lib/format';
 import { 
-  Calendar as CalendarIcon, Printer, FileSpreadsheet, Filter, ChevronDown 
+  Calendar as CalendarIcon, Printer, FileSpreadsheet, Filter, ChevronDown, Pencil, Trash2
 } from 'lucide-vue-next';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -12,6 +12,8 @@ import {
   DateFormatter, getLocalTimeZone, today, type DateValue 
 } from '@internationalized/date';
 import { ExcelGenerator } from '@/services/ExcelGenerator';
+import { useRouter } from 'vue-router'; // [NEW] Import Router
+import { TransactionLogic } from '@/services/TransactionLogic'; // [NEW] Logic
 
 // Shadcn UI
 import { Button } from '@/components/ui/button';
@@ -20,6 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { RangeCalendar } from '@/components/ui/range-calendar';
 import { Badge } from '@/components/ui/badge';
 
+const router = useRouter();
 // === STATE & LOGIC ===
 const now = today(getLocalTimeZone());
 const dateRange = ref({
@@ -52,6 +55,23 @@ const fetchReport = async () => {
     showPreview.value = true;
   } finally {
     isLoading.value = false;
+  }
+};
+
+const handleEdit = (id: number) => {
+  // Pindah ke halaman Input dengan membawa ID
+  router.push({ name: 'input', query: { id: id.toString() } });
+};
+
+const handleDelete = async (id: number) => {
+  if (confirm('Yakin ingin menghapus transaksi ini? Data tidak bisa dikembalikan.')) {
+    try {
+      await TransactionLogic.delete(id);
+      // Refresh data
+      await fetchReport();
+    } catch (e) {
+      alert('Gagal menghapus data');
+    }
   }
 };
 
@@ -142,21 +162,33 @@ onMounted(fetchReport);
             <table class="w-full text-sm">
               <thead class="bg-slate-50 border-b">
                 <tr>
-                  <th class="h-10 px-6 text-left">Tanggal</th>
+                  <th class="h-10 px-6 text-left w-12">No</th> <th class="h-10 px-6 text-left">Tanggal</th>
                   <th class="h-10 px-6 text-left">Keterangan</th>
                   <th class="h-10 px-6 text-right">Masuk</th>
                   <th class="h-10 px-6 text-right">Keluar</th>
-                </tr>
+                  <th class="h-10 px-6 text-center w-24">Aksi</th> </tr>
               </thead>
               <tbody class="divide-y divide-slate-100">
-                <tr v-for="t in reportData" :key="t.id" class="hover:bg-slate-50/50">
-                  <td class="p-4 px-6">{{ format(new Date(t.date), 'dd/MM/yyyy') }}</td>
+                <tr v-for="(t, index) in reportData" :key="t.id" class="hover:bg-slate-50/50 group">
+                  <td class="p-4 px-6 text-slate-500">{{ index + 1 }}</td>
+                  <td class="p-4 px-6 whitespace-nowrap">{{ format(new Date(t.date), 'dd/MM/yyyy') }}</td>
                   <td class="p-4 px-6">
                     <div class="font-medium">{{ t.items ? t.items.map((i: any) => i.itemName).join(', ') : '-' }}</div>
                     <div class="text-xs text-slate-500" v-if="t.notes">"{{ t.notes }}"</div>
                   </td>
                   <td class="p-4 px-6 text-right font-mono text-emerald-600">{{ t.type === 'INCOME' ? formatRupiah(t.totalAmount) : '-' }}</td>
                   <td class="p-4 px-6 text-right font-mono text-rose-600">{{ t.type === 'EXPENSE' ? formatRupiah(t.totalAmount) : '-' }}</td>
+                  
+                  <td class="p-4 px-6 text-center">
+                    <div class="flex items-center justify-center gap-2 transition-opacity">
+                      <Button variant="ghost" size="icon" class="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" @click="handleEdit(t.id)">
+                        <Pencil class="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" class="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50" @click="handleDelete(t.id)">
+                        <Trash2 class="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               </tbody>
             </table>

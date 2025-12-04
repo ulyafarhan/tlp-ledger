@@ -1,70 +1,119 @@
 import { db } from '@/db';
-import type { TransactionHeader } from '@/types';
+import { startOfDay, subDays, subYears, format, isSameDay, parseISO } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 export interface DashboardStats {
   totalIncome: number;
   totalExpense: number;
   netProfit: number;
-  chartData: {
-    labels: string[];
-    income: number[];
-    expense: number[];
-  };
-  recentTransactions: TransactionHeader[];
+  recentTransactions: any[];
+  // Chart data dipisah agar lebih fleksibel
 }
 
 export const AnalyticsService = {
+  /**
+   * Ambil Ringkasan Statistik & Transaksi Terbaru
+   */
   async getDashboardData(): Promise<DashboardStats> {
-    const headers = await db.headers.orderBy('date').toArray();
-    
+    const headers = await db.headers.toArray();
+    const details = await db.details.toArray();
+
     let totalIncome = 0;
     let totalExpense = 0;
-    const dailyMap = new Map<string, { income: number; expense: number }>();
 
-    // Agregasi Data
-    headers.forEach(h => {
-      const dateStr = new Date(h.date).toLocaleDateString('id-ID');
-      
-      if (!dailyMap.has(dateStr)) {
-        dailyMap.set(dateStr, { income: 0, expense: 0 });
-      }
-      
-      const dayStat = dailyMap.get(dateStr)!;
-
-      if (h.type === 'INCOME') {
-        totalIncome += h.totalAmount;
-        dayStat.income += h.totalAmount;
+    // 1. Hitung Total Akumulasi
+    headers.forEach(t => {
+      if (t.type === 'INCOME') {
+        totalIncome += t.totalAmount;
       } else {
-        totalExpense += h.totalAmount;
-        dayStat.expense += h.totalAmount;
+        totalExpense += t.totalAmount;
       }
     });
 
-    // Format untuk Chart.js
-    const sortedDates = Array.from(dailyMap.keys());
-    
+    // 2. Ambil 5 Transaksi Terakhir (Join Manual)
+    const sortedHeaders = headers
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5);
+
+    const recentTransactions = sortedHeaders.map(h => {
+      // Gabungkan dengan detail untuk info tooltip/display jika perlu
+      const myItems = details.filter(d => d.headerId === h.id);
+      // Buat ringkasan nama item
+      const itemSummary = myItems.map(i => i.itemName).join(', ');
+      
+      return {
+        ...h,
+        // Jika notes kosong, pakai nama item sebagai keterangan
+        notes: h.notes || itemSummary || 'Tanpa Keterangan', 
+        items: myItems
+      };
+    });
+
     return {
       totalIncome,
       totalExpense,
       netProfit: totalIncome - totalExpense,
-      recentTransactions: headers.slice(-5).reverse(), // 5 Terakhir
-      chartData: {
-        labels: sortedDates,
-        income: sortedDates.map(d => dailyMap.get(d)!.income),
-        expense: sortedDates.map(d => dailyMap.get(d)!.expense)
-      }
+      recentTransactions
     };
   },
 
-  async getAllForExport() {
-    const headers = await db.headers.orderBy('date').toArray();
-    // Fetch details untuk laporan lengkap (opsional: bisa di-optimize dengan cursor)
-    const exportData = [];
+  /**
+   * Ambil Data Grafik Berdasarkan Periode
+   */
+  async getChartDataForPeriod(period: '7d' | '30d' | '1y') {
+    const today = new Date();
+    let startDate = new Date();
+
+    // Tentukan Tanggal Mulai
+    if (period === '7d') startDate = subDays(today, 7);
+    else if (period === '30d') startDate = subDays(today, 30);
+    else if (period === '1y') startDate = subYears(today, 1);
+
+    // Ambil transaksi dalam rentang waktu
+    const allHeaders = await db.headers.toArray();
+    const filtered = allHeaders.filter(h => new Date(h.date) >= startOfDay(startDate));
+
+    // Siapkan Array Tanggal (Label)
+    const labels: string[] = [];
+    const incomeData: number[] = [];
+    const expenseData: number[] = [];
+
+    // Grouping Data per Hari/Bulan
+    // Untuk 7d & 30d -> Harian
+    // Untuk 1y -> Sebaiknya Bulanan (tapi untuk simplisitas kita buat harian dulu atau condensed)
     
-    for (const h of headers) {
-      const details = await db.details.where('headerId').equals(h.id!).toArray();
-      exportData.push({ header: h, details });
-    }
-    return exportData;
+    const dateMap = new Map<string, { income: number, expense: number }>();
+
+    filtered.forEach(t => {
+      // Format Key: YYYY-MM-DD
+      const dateKey = format(new Date(t.date), 'yyyy-MM-dd');
+      
+      if (!dateMap.has(dateKey)) {
+        dateMap.set(dateKey, { income: 0, expense: 0 });
+      }
+
+      const entry = dateMap.get(dateKey)!;
+      if (t.type === 'INCOME') entry.income += t.totalAmount;
+      else entry.expense += t.totalAmount;
+    });
+
+    // Sort Map keys (Tanggal)
+    const sortedKeys = Array.from(dateMap.keys()).sort();
+
+    sortedKeys.forEach(key => {
+      // Format Label Grafik (misal: 05 Okt)
+      const label = format(parseISO(key), 'dd MMM', { locale: id });
+      labels.push(label);
+      
+      const data = dateMap.get(key)!;
+      incomeData.push(data.income);
+      expenseData.push(data.expense);
+    });
+
+    return {
+      labels,
+      income: incomeData,
+      expense: expenseData
+    };
   }
 };

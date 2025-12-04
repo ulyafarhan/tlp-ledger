@@ -5,7 +5,7 @@ import { formatRupiah } from '@/lib/format';
 import { 
   TrendingUp, TrendingDown, Wallet, 
   ArrowUpRight, ArrowDownLeft, CalendarClock, 
-  Plus, Filter, ChevronDown, Download, BarChart3, PieChart
+  Plus, Filter, ChevronDown, BarChart3, PieChart
 } from 'lucide-vue-next';
 import FinancialChart from '@/components/modules/FinancialChart.vue';
 import { format } from 'date-fns';
@@ -21,58 +21,68 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const router = useRouter();
+
+// State
 const stats = ref<DashboardStats | null>(null);
-const loading = ref(true);
-const chartLoading = ref(false); // Loading khusus untuk grafik
+const loading = ref(true); // Loading untuk Summary Cards & List
+const chartLoading = ref(true); // Loading khusus Chart
 
-// State Filter Grafik
-const chartPeriod = ref('30d'); // 7d, 30d, 1y
-const chartType = ref('all');   // all, income, expense
+// Chart State
+const chartPeriod = ref<'7d' | '30d' | '1y'>('30d');
+const chartType = ref<'all' | 'income' | 'expense'>('all');
+const rawChartData = ref<{ labels: string[], income: number[], expense: number[] }>({
+  labels: [], income: [], expense: []
+});
 
-const loadData = async () => {
+// 1. Load Dashboard Data (Stats & Recent Tx)
+const loadStats = async () => {
   loading.value = true;
-  // Simulasi load awal
-  setTimeout(async () => {
+  try {
+    // Simulasi delay kecil agar skeleton terlihat smooth
+    await new Promise(resolve => setTimeout(resolve, 500));
     stats.value = await AnalyticsService.getDashboardData();
+  } catch (e) {
+    console.error("Gagal memuat statistik:", e);
+  } finally {
     loading.value = false;
-  }, 800);
+  }
 };
 
-// Fungsi simulasi update grafik saat filter berubah
-const updateChart = async (period: string) => {
+// 2. Load Chart Data (Terpisah agar dinamis)
+const updateChart = async (period: '7d' | '30d' | '1y') => {
   chartPeriod.value = period;
   chartLoading.value = true;
-  
-  // Di sini nanti Anda panggil API dengan parameter period
-  // Contoh: const newData = await AnalyticsService.getChartData(period);
-  
-  setTimeout(() => {
+  try {
+    rawChartData.value = await AnalyticsService.getChartDataForPeriod(period);
+  } catch (e) {
+    console.error("Gagal memuat grafik:", e);
+  } finally {
     chartLoading.value = false;
-  }, 500); // Simulasi delay network ringan
+  }
 };
 
-// Filter Data Grafik (Client-side filtering simulation)
+// 3. Filter Chart (Client-side filtering untuk tipe)
 const filteredChartData = computed(() => {
-  if (!stats.value) return { labels: [], income: [], expense: [] };
+  const { labels, income, expense } = rawChartData.value;
   
-  const original = stats.value.chartData;
-  
-  // Jika filter type dipilih, kita nol-kan data yang tidak relevan agar grafik fokus
+  if (!labels.length) return { labels: [], income: [], expense: [] };
+
   return {
-    labels: original.labels,
-    income: chartType.value === 'expense' ? Array(original.labels.length).fill(0) : original.income,
-    expense: chartType.value === 'income' ? Array(original.labels.length).fill(0) : original.expense,
+    labels,
+    income: chartType.value === 'expense' ? Array(labels.length).fill(0) : income,
+    expense: chartType.value === 'income' ? Array(labels.length).fill(0) : expense,
   };
 });
 
-onMounted(loadData);
+// Init
+onMounted(() => {
+  loadStats();
+  updateChart('30d');
+});
 </script>
 
 <template>
@@ -85,12 +95,12 @@ onMounted(loadData);
           <h2 class="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h2>
           <div class="flex items-center text-sm text-slate-500">
             <span class="bg-slate-100 px-2 py-0.5 rounded text-xs font-medium text-slate-600 mr-2">Pro</span>
-            Pantau kesehatan finansial usaha Anda secara real-time.
+            Pantau kesehatan finansial usaha Anda.
           </div>
         </div>
 
         <div class="hidden md:flex gap-2">
-           <Button variant="outline" size="sm" class="bg-white" @click="loadData">
+           <Button variant="outline" size="sm" class="bg-white" @click="loadStats">
              <CalendarClock class="w-3.5 h-3.5 mr-2 text-slate-500" />
              {{ format(new Date(), 'dd MMM yyyy', { locale: id }) }}
            </Button>
@@ -116,7 +126,7 @@ onMounted(loadData);
               </div>
               <p class="text-xs text-emerald-600 font-medium mt-2 flex items-center">
                 <ArrowUpRight class="w-3 h-3 mr-1" />
-                Arus kas masuk
+                Akumulasi masuk
               </p>
             </div>
           </CardContent>
@@ -149,10 +159,9 @@ onMounted(loadData);
         <Card class="relative overflow-hidden bg-slate-900 text-white shadow-xl shadow-indigo-500/20 border-0">
           <div class="absolute inset-0 bg-gradient-to-r from-indigo-600 to-slate-900 opacity-50"></div>
           <div class="absolute top-0 right-0 -mt-6 -mr-6 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-          
           <CardHeader class="pb-2 relative z-10">
             <div class="flex justify-between items-center">
-              <CardTitle class="text-sm font-medium text-indigo-200 uppercase tracking-wider">Net Profit</CardTitle>
+              <CardTitle class="text-sm font-medium text-indigo-200 uppercase tracking-wider">Saldo Bersih</CardTitle>
               <Wallet class="w-5 h-5 text-indigo-300" />
             </div>
           </CardHeader>
@@ -166,7 +175,7 @@ onMounted(loadData);
                 {{ formatRupiah(stats?.netProfit || 0) }}
               </div>
               <p class="text-xs text-indigo-200 mt-2">
-                Saldo tersedia saat ini
+                Saldo saat ini
               </p>
             </div>
           </CardContent>
@@ -182,61 +191,43 @@ onMounted(loadData);
                 <BarChart3 class="w-5 h-5 text-indigo-600" />
                 Analisis Tren
               </CardTitle>
-              <CardDescription class="mt-1">Visualisasi performa keuangan.</CardDescription>
+              <CardDescription class="mt-1">Grafik arus kas harian.</CardDescription>
             </div>
 
             <div class="flex flex-col sm:flex-row gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger as-child>
                   <Button variant="outline" size="sm" class="h-8 gap-2 bg-white text-xs font-medium">
-                    <span v-if="chartType === 'all'">Semua Transaksi</span>
-                    <span v-else-if="chartType === 'income'">Hanya Pemasukan</span>
-                    <span v-else>Hanya Pengeluaran</span>
+                    <span v-if="chartType === 'all'">Semua Data</span>
+                    <span v-else-if="chartType === 'income'">Pemasukan</span>
+                    <span v-else>Pengeluaran</span>
                     <ChevronDown class="w-3 h-3 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem @click="chartType = 'all'">Semua Transaksi</DropdownMenuItem>
-                  <DropdownMenuItem @click="chartType = 'income'">Hanya Pemasukan</DropdownMenuItem>
-                  <DropdownMenuItem @click="chartType = 'expense'">Hanya Pengeluaran</DropdownMenuItem>
+                  <DropdownMenuItem @click="chartType = 'all'">Semua Data</DropdownMenuItem>
+                  <DropdownMenuItem @click="chartType = 'income'">Pemasukan</DropdownMenuItem>
+                  <DropdownMenuItem @click="chartType = 'expense'">Pengeluaran</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
               <div class="bg-slate-100 p-1 rounded-lg flex text-xs font-medium">
-                <button 
-                  @click="updateChart('7d')"
-                  class="px-3 py-1 rounded-md transition-all"
-                  :class="chartPeriod === '7d' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
-                >
-                  7 Hari
-                </button>
-                <button 
-                  @click="updateChart('30d')"
-                  class="px-3 py-1 rounded-md transition-all"
-                  :class="chartPeriod === '30d' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
-                >
-                  30 Hari
-                </button>
-                <button 
-                  @click="updateChart('1y')"
-                  class="px-3 py-1 rounded-md transition-all"
-                  :class="chartPeriod === '1y' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
-                >
-                  1 Tahun
-                </button>
+                <button @click="updateChart('7d')" class="px-3 py-1 rounded-md transition-all" :class="chartPeriod === '7d' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'">7 Hari</button>
+                <button @click="updateChart('30d')" class="px-3 py-1 rounded-md transition-all" :class="chartPeriod === '30d' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'">30 Hari</button>
+                <button @click="updateChart('1y')" class="px-3 py-1 rounded-md transition-all" :class="chartPeriod === '1y' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'">1 Tahun</button>
               </div>
             </div>
           </div>
 
           <CardContent class="p-0 flex-1 relative min-h-[380px]">
-             <div v-if="chartLoading || loading" class="absolute inset-0 bg-white/80 z-20 flex items-center justify-center backdrop-blur-[1px]">
+             <div v-if="chartLoading" class="absolute inset-0 bg-white/80 z-20 flex items-center justify-center backdrop-blur-[1px]">
                <div class="flex flex-col items-center">
                  <div class="h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                 <p class="text-xs text-slate-500 mt-3 font-medium">Memuat data...</p>
+                 <p class="text-xs text-slate-500 mt-3 font-medium">Memuat grafik...</p>
                </div>
              </div>
 
-             <div v-if="stats && filteredChartData.labels.length > 0" class="h-[380px] w-full p-4">
+             <div v-if="!chartLoading && filteredChartData.labels.length > 0" class="h-[380px] w-full p-4">
                 <FinancialChart 
                   :labels="filteredChartData.labels"
                   :income-data="filteredChartData.income"
@@ -244,12 +235,12 @@ onMounted(loadData);
                 />
              </div>
              
-             <div v-else-if="!loading" class="h-full flex flex-col items-center justify-center text-slate-400 p-8">
+             <div v-if="!chartLoading && filteredChartData.labels.length === 0" class="h-full flex flex-col items-center justify-center text-slate-400 p-8">
                 <div class="p-4 bg-slate-50 rounded-full shadow-sm mb-4">
                   <PieChart class="w-8 h-8 text-slate-300" />
                 </div>
                 <p class="text-sm font-medium">Data Visual Belum Tersedia</p>
-                <p class="text-xs text-slate-400 mt-1">Mulai catat transaksi untuk melihat grafik.</p>
+                <p class="text-xs text-slate-400 mt-1">Data grafik akan muncul setelah Anda mengisi transaksi.</p>
              </div>
           </CardContent>
         </Card>
@@ -261,12 +252,7 @@ onMounted(loadData);
                 <CardTitle class="text-base text-slate-800">Aktivitas</CardTitle>
                 <CardDescription>Transaksi terbaru.</CardDescription>
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                class="h-7 text-xs text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-2"
-                @click="router.push('/report')"
-              >
+              <Button variant="ghost" size="sm" class="h-7 text-xs text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-2" @click="router.push('/report')">
                 Lihat Semua
               </Button>
             </div>
@@ -283,7 +269,7 @@ onMounted(loadData);
             </div>
             
             <div v-else>
-              <div v-if="stats?.recentTransactions.length" class="divide-y divide-slate-50">
+              <div v-if="stats?.recentTransactions && stats.recentTransactions.length > 0" class="divide-y divide-slate-50">
                 <div 
                   v-for="t in stats.recentTransactions" 
                   :key="t.id" 
@@ -300,7 +286,7 @@ onMounted(loadData);
                     
                     <div class="space-y-0.5 truncate min-w-0 flex-1">
                       <p class="text-sm font-medium leading-none truncate text-slate-700 group-hover:text-indigo-600 transition-colors">
-                        {{ t.notes || 'Tanpa Keterangan' }}
+                        {{ t.notes }}
                       </p>
                       <p class="text-[11px] text-slate-400 flex items-center">
                         {{ format(new Date(t.date), 'dd MMM • HH:mm', { locale: id }) }}
@@ -324,7 +310,7 @@ onMounted(loadData);
                   <CalendarClock class="h-5 w-5 text-slate-300" />
                 </div>
                 <p class="text-sm font-medium text-slate-500">Buku Kosong</p>
-                <p class="text-xs text-slate-400 mt-1">Belum ada transaksi.</p>
+                <p class="text-xs text-slate-400 mt-1">Belum ada transaksi tercatat.</p>
               </div>
             </div>
           </CardContent>

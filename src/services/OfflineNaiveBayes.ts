@@ -13,6 +13,7 @@ interface TransactionItem {
   quantity: number;
   price: number;
   category: string;
+  totalPrice: number;
 }
 
 // Cache di memori
@@ -83,7 +84,7 @@ export const OfflineNaiveBayes = {
     const tokens = SmartParser.tokenize(text); 
     const results: TransactionItem[] = [];
     
-    let currentItem: TransactionItem = { itemName: '', quantity: 1, price: 0, category: 'Umum' };
+    let currentItem: TransactionItem = { itemName: '', quantity: 1, price: 0, category: 'Umum', totalPrice: 0 };
     let hasItem = false;
 
     tokens.forEach((word, i) => {
@@ -157,7 +158,7 @@ export const OfflineNaiveBayes = {
         if (tagBase === 'ITEM') {
              if (bestTag.startsWith('B-') && hasItem) {
                  if (currentItem.itemName) results.push({ ...currentItem });
-                 currentItem = { itemName: '', quantity: 1, price: 0, category: 'Umum' };
+                 currentItem = { itemName: '', quantity: 1, price: 0, category: 'Umum', totalPrice: 0 };
              }
              currentItem.itemName += (currentItem.itemName ? ' ' : '') + word;
              hasItem = true;
