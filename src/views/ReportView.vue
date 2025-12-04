@@ -11,6 +11,7 @@ import { id } from 'date-fns/locale';
 import { 
   DateFormatter, getLocalTimeZone, today, type DateValue 
 } from '@internationalized/date';
+import { ExcelGenerator } from '@/services/ExcelGenerator';
 
 // Shadcn UI
 import { Button } from '@/components/ui/button';
@@ -44,8 +45,8 @@ const fetchReport = async () => {
   if (!dateRange.value.start || !dateRange.value.end) return;
   isLoading.value = true;
   try {
-    const start = toNativeDate(dateRange.value.start);
-    const end = toNativeDate(dateRange.value.end);
+    const start = toNativeDate(dateRange.value.start as DateValue);
+    const end = toNativeDate(dateRange.value.end as DateValue);
     end.setHours(23, 59, 59, 999);
     reportData.value = await ReportGenerator.getTransactionData(start, end);
     showPreview.value = true;
@@ -65,11 +66,11 @@ const setPreset = (type: 'thisMonth' | 'lastMonth' | 'thisYear') => {
 
 const handleExportExcel = async () => {
   if (!dateRange.value.start || !dateRange.value.end) return;
-  const start = toNativeDate(dateRange.value.start);
-  const end = toNativeDate(dateRange.value.end);
-  const csv = await ReportGenerator.generateCSV(start, end);
-  const fileName = `Laporan-${appStore.shopName.replace(/\s+/g, '-')}-${format(new Date(), 'yyyyMMdd')}.csv`;
-  ReportGenerator.downloadCSV(csv, fileName);
+  
+  const start = toNativeDate(dateRange.value.start as DateValue);
+  const end = toNativeDate(dateRange.value.end as DateValue);
+
+  await ExcelGenerator.generateExcel(start, end);
 };
 
 const handlePrintPDF = () => {

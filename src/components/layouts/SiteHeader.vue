@@ -56,14 +56,10 @@ const userInitials = computed(() => {
 <template>
   <header class="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/60">
     <div class="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-      
       <div class="flex items-center gap-2.5 cursor-pointer group" @click="navigateTo('/')">
-        <div class="h-9 w-9 bg-slate-900 rounded-xl flex items-center justify-center text-white font-bold shadow-sm group-hover:bg-indigo-600 transition-colors duration-300">
-          T
-        </div>
-        <div class="hidden md:flex flex-col">
+        <div class="flex flex-col">
           <span class="text-lg font-bold tracking-tight text-slate-900 leading-none">
-            T-LP Ledger
+            {{ shopName }}
           </span>
           <span class="text-[10px] text-slate-500 font-medium">
             Pencatatan Keuangan

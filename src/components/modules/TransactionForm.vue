@@ -181,7 +181,7 @@ const submitTransaction = async () => {
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Input Transaksi</h1>
-          <p class="text-slate-500 text-sm">Catat detail pemasukan atau pengeluaran baru.</p>
+          <p class="text-slate-500 text-sm">Catat detail transaksi operasional.</p>
         </div>
         
         <Button 
