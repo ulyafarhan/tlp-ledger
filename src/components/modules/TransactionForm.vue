@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
 import { Plus, Trash2, Save, Loader2, Wand2, Calendar as CalendarIcon, Package, StickyNote, Receipt, Sparkles, BadgeCheck } from 'lucide-vue-next'
+import { useDraggable } from '@vueuse/core'
 import { formatRupiah } from '@/lib/format'
 import { useAI } from '@/composables/useAI'
 import type { TransactionType } from '@/types'
@@ -33,6 +34,13 @@ const isSubmitting = ref(false)
 const showAIDialog = ref(false)
 const rawAIText = ref('')
 const { processText, isProcessing: isAIProcessing, detectedMeta } = useAI();
+
+// Draggable Floating Button
+const el = ref<HTMLElement | null>(null)
+const { style } = useDraggable(el, {
+  initialValue: { x: window.innerWidth - 100, y: window.innerHeight - 180 },
+  preventDefault: true,
+})
 
 // State Tanggal
 const dateValue = ref<DateValue | undefined>(today(getLocalTimeZone()))
@@ -180,65 +188,61 @@ const submitTransaction = async () => {
       
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Input Transaksi</h1>
+          <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Transaksi Pintar</h1>
           <p class="text-slate-500 text-sm">Catat detail transaksi operasional.</p>
         </div>
-        
-        <Button 
-          variant="outline" 
-          class="bg-white hover:bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm"
-          @click="showAIDialog = true"
-        >
-          <Wand2 class="w-4 h-4 mr-2" />
-          AI Magic Input
-        </Button>
       </div>
 
       <div class="grid gap-6">
         
-        <Card class="border-slate-200 shadow-sm overflow-hidden">
-          <div class="h-1.5 w-full" :class="header.type === 'INCOME' ? 'bg-emerald-500' : 'bg-rose-500'"></div>
-          <CardContent class="p-6">
-            <div class="grid gap-6 md:grid-cols-2">
+        <Card class="rounded-xl border border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden bg-gradient-to-br from-white to-slate-50">
+          <CardContent class="p-4 sm:p-6 space-y-6">
+            <div class="grid gap-6 sm:gap-8 grid-cols-1 md:grid-cols-2">
               
+              <!-- Jenis Transaksi -->
               <div class="space-y-3">
-                <Label class="text-slate-600 font-medium">Jenis Transaksi</Label>
+                <Label class="text-slate-700 font-semibold tracking-wide">Jenis Transaksi</Label>
                 <Tabs v-model="header.type" class="w-full">
-                  <TabsList class="grid w-full grid-cols-2 h-11 bg-slate-100 p-1 rounded-lg">
+                  <TabsList class="grid w-full grid-cols-2 h-12 bg-slate-100 p-1 rounded-xl shadow-inner">
                     <TabsTrigger 
                       value="EXPENSE" 
-                      class="rounded-md data-[state=active]:bg-white data-[state=active]:text-rose-600 data-[state=active]:shadow-sm data-[state=active]:font-semibold transition-all duration-200"
+                      class="group rounded-lg data-[state=active]:bg-white data-[state=active]:text-rose-600 data-[state=active]:shadow-md data-[state=active]:font-bold transition-all duration-300 hover:bg-rose-50 hover:text-rose-600"
                     >
-                      Pengeluaran
+                      <span class="inline-block group-hover:animate-wiggle">💸</span> Pengeluaran
                     </TabsTrigger>
                     <TabsTrigger 
                       value="INCOME" 
-                      class="rounded-md data-[state=active]:bg-white data-[state=active]:text-emerald-600 data-[state=active]:shadow-sm data-[state=active]:font-semibold transition-all duration-200"
+                      class="group rounded-lg data-[state=active]:bg-white data-[state=active]:text-emerald-600 data-[state=active]:shadow-md data-[state=active]:font-bold transition-all duration-300 hover:bg-emerald-50 hover:text-emerald-600"
                     >
-                      Pemasukan
+                      <span class="text-emerald-600 inline-block">💰</span> Pemasukan
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
 
+              <!-- Tanggal Transaksi -->
               <div class="space-y-3">
-                <Label class="text-slate-600 font-medium">Tanggal Transaksi</Label>
+                <Label class="text-slate-700 font-semibold tracking-wide">Tanggal Transaksi</Label>
                 <Popover>
                   <PopoverTrigger as-child>
                     <Button
                       variant="outline"
                       :class="cn(
-                        'w-full justify-start text-left font-normal h-11 border-slate-200 bg-white hover:bg-slate-50',
-                        !dateValue && 'text-muted-foreground'
+                        'w-full justify-start text-left font-medium h-12 border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 transition-all duration-300 rounded-lg shadow-sm',
+                        !dateValue && 'text-slate-400 italic'
                       )"
                     >
-                      <CalendarIcon class="mr-2 h-4 w-4 text-slate-500" />
-                      <span class="text-slate-700">{{ dateValueJs ? format(dateValueJs, 'PPP', { locale: id }) : "Pilih tanggal" }}</span>
+                      <CalendarIcon class="mr-2 h-5 w-5 text-slate-500 transition-transform duration-300 group-hover:scale-110" />
+                      <span class="text-slate-700">
+                        {{ dateValueJs ? format(dateValueJs, 'PPP', { locale: id }) : "📅 Pilih tanggal" }}
+                      </span>
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent class="w-auto p-0 bg-white z-[50]" align="start">
-                    <Calendar v-model="dateValue" initial-focus />
-                  </PopoverContent>
+                  <transition name="fade-scale" mode="out-in">
+                    <PopoverContent class="w-auto p-0 bg-white z-[50] rounded-xl shadow-lg border border-slate-200 animate-fade-in" align="start">
+                      <Calendar v-model="dateValue" initial-focus class="rounded-lg" />
+                    </PopoverContent>
+                  </transition>
                 </Popover>
               </div>
             </div>
@@ -411,6 +415,16 @@ const submitTransaction = async () => {
         </div>
 
       </div>
+
+      <button
+        ref="el"
+        :style="style"
+        style="position: fixed"
+        class="z-50 flex items-center justify-center w-16 h-16 rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-300 cursor-grab active:cursor-grabbing"
+        @click="showAIDialog = true"
+      >
+        <Wand2 class="w-7 h-7" />
+      </button>
     </div>
 
     <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-slate-200 z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">

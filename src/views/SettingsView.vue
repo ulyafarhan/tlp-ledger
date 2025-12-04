@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref, computed } from 'vue';
-import { appStore, isDark } from '@/stores/useAppStore'; // Import isDark langsung
+import { appStore, isDark } from '@/stores/useAppStore'; 
 import { db } from '@/db';
 import { format } from 'date-fns';
 import { 
@@ -62,47 +62,7 @@ const downloadFile = (content: string, fileName: string, type: string) => {
   URL.revokeObjectURL(url);
 };
 
-// 1. Export CSV
-const exportToCSV = async () => {
-  isExporting.value = true;
-  try {
-    const headers = await db.headers.toArray();
-    const details = await db.details.toArray();
-
-    if (headers.length === 0) throw new Error("Belum ada data transaksi.");
-
-    const csvHeader = ['Tanggal', 'Tipe', 'Item', 'Kategori', 'Qty', 'Harga Satuan', 'Total', 'Catatan'];
-    
-    const rows = headers.map(h => {
-      const myDetails = details.filter(d => d.headerId === h.id);
-      const itemNames = myDetails.map(d => d.itemName).join(' + ');
-      const categories = myDetails.map(d => d.category).join(', ');
-      const totalQty = myDetails.reduce((sum, d) => sum + d.quantity, 0);
-      const prices = myDetails.map(d => d.pricePerUnit).join(', ');
-
-      return [
-        format(new Date(h.date), 'yyyy-MM-dd HH:mm:ss'),
-        h.type,
-        `"${itemNames}"`, 
-        `"${categories}"`,
-        totalQty,
-        `"${prices}"`,
-        h.totalAmount, 
-        `"${h.notes || ''}"`
-      ];
-    });
-
-    const csvContent = [csvHeader.join(','), ...rows.map(r => r.join(','))].join('\n');
-    downloadFile(csvContent, `Laporan-Keuangan-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8;');
-    
-  } catch (e: any) {
-    alert(e.message || 'Gagal export CSV.');
-  } finally {
-    isExporting.value = false;
-  }
-};
-
-// 2. Full Backup JSON (Fix: Include Theme Manual)
+// 1. Full Backup JSON (Fix: Include Theme Manual)
 const exportBackup = async () => {
   isExporting.value = true;
   try {
@@ -140,7 +100,7 @@ const exportBackup = async () => {
 
 const triggerImport = () => fileInput.value?.click();
 
-// 3. Restore Data (Fix: Handle Theme & Read-only Error)
+// 2. Restore Data (Fix: Handle Theme & Read-only Error)
 const handleFileUpload = (event: Event) => {
   const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
@@ -286,22 +246,6 @@ const resetDatabase = async () => {
           <TabsContent value="data" class="space-y-6 m-0 animate-in fade-in slide-in-from-right-4 duration-500">
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card class="border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700 hover:border-emerald-200 transition-colors">
-                <CardHeader class="pb-3">
-                  <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center mb-2 dark:bg-emerald-900/30">
-                    <FileSpreadsheet class="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <CardTitle class="text-base dark:text-white">Laporan Excel</CardTitle>
-                  <CardDescription class="text-xs dark:text-slate-400">Download data dalam format CSV.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button variant="outline" size="sm" class="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-900/20" @click="exportToCSV" :disabled="isExporting">
-                    <Download class="w-4 h-4 mr-2" />
-                    Download CSV
-                  </Button>
-                </CardContent>
-              </Card>
-
               <Card class="border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700 hover:border-indigo-200 transition-colors">
                 <CardHeader class="pb-3">
                   <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center mb-2 dark:bg-indigo-900/30">
@@ -312,29 +256,32 @@ const resetDatabase = async () => {
                 </CardHeader>
                 <CardContent>
                   <Button variant="outline" size="sm" class="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-900/20" @click="exportBackup" :disabled="isExporting">
-                    <Save class="w-4 h-4 mr-2" />
+                    <Save class="md:w-5 md:h-5 sm:w-4 sm:h-4 mr-2" />
                     Simpan Backup
                   </Button>
                 </CardContent>
               </Card>
-            </div>
 
-            <Card class="border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700">
-              <CardHeader>
-                <CardTitle class="text-base dark:text-white">Restore Data</CardTitle>
-                <CardDescription class="dark:text-slate-400">Pulihkan data dari file .json backup.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div class="border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center text-center hover:bg-slate-50 transition-colors dark:border-slate-700 dark:hover:bg-slate-800/50 cursor-pointer" @click="triggerImport">
-                  <Upload class="w-8 h-8 text-slate-400 mb-2" />
-                  <p class="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    {{ isImporting ? 'Memproses...' : 'Klik untuk Upload File Backup' }}
-                  </p>
-                  <p class="text-xs text-slate-400 mt-1">Format .json saja</p>
-                  <input type="file" ref="fileInput" class="hidden" accept=".json" @change="handleFileUpload" />
-                </div>
-              </CardContent>
-            </Card>
+              <Card class="border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700 hover:border-emerald-200 transition-colors">
+                <CardHeader class="pb-3">
+                  <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center mb-2 dark:bg-emerald-900/30">
+                    <FileSpreadsheet class="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <CardTitle class="text-base dark:text-white">Restore Data</CardTitle>
+                  <CardDescription class="text-xs dark:text-slate-400">Pulihkan data dari file .json backup.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div class="border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center text-center hover:bg-slate-50 transition-colors dark:border-slate-700 dark:hover:bg-slate-800/50 cursor-pointer" @click="triggerImport">
+                    <Upload class="md:w-8 md:h-8 sm:w-6 sm:h-6 text-slate-400 mb-2" />
+                    <p class="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      {{ isImporting ? 'Memproses...' : 'Klik untuk Upload File Backup' }}
+                    </p>
+                    <p class="text-xs text-slate-400 mt-1">Format .json saja</p>
+                    <input type="file" ref="fileInput" class="hidden" accept=".json" @change="handleFileUpload" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             <div class="pt-4">
               <h4 class="text-xs font-bold text-red-600 uppercase tracking-wider mb-3 px-1">Zona Bahaya</h4>

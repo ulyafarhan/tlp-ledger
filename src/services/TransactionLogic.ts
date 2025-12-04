@@ -1,5 +1,4 @@
 import { db } from '@/db';
-import type { FullTransactionPayload } from '@/types';
 
 export const TransactionLogic = {
   /**

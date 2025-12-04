@@ -72,4 +72,25 @@
     /* Ini akan membaca variabel --background yang aktif (:root atau .dark) */
     @apply bg-background text-foreground; 
   }
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-5deg); }
+    75% { transform: rotate(5deg); }
+  }
+  .animate-wiggle {
+    animation: wiggle 0.4s ease-in-out;
+  }
+
+  .fade-scale-enter-active {
+    transition: all 0.3s ease;
+  }
+  .fade-scale-enter-from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  .fade-scale-enter-to {
+    opacity: 1;
+    transform: scale(1);
+  }
+
 }

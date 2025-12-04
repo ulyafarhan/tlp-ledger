@@ -1,10 +1,14 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const API_KEY = "AIzaSyD0z3TJZlDDOiAyKwgv1Ey6qORicJj265I"; 
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 export const GeminiAI = {
   async parse(text: string) {
-    if (!navigator.onLine) return null; // Safety check
+    if (!navigator.onLine) return null; 
+    if (!API_KEY) {
+      console.error("API Key Gemini belum disetting di file .env");
+      throw new Error("Missing API Key");
+    }
     
     try {
       const genAI = new GoogleGenerativeAI(API_KEY);
@@ -28,7 +32,7 @@ export const GeminiAI = {
       return JSON.parse(textResponse);
     } catch (error) {
       console.error("Gemini Gagal:", error);
-      throw error; // Lempar agar ditangkap fallback
+      throw error; 
     }
   }
 };
