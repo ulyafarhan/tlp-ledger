@@ -1,66 +1,101 @@
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { GeminiAI } from '@/services/GeminiAI';
 import { OfflineNaiveBayes } from '@/services/OfflineNaiveBayes';
-import { SmartParser } from '@/services/SmartParser'; // Import Baru
+import { SmartParser, type ParsedMeta } from '@/services/SmartParser';
 
 export function useAI() {
   const isProcessing = ref(false);
-  const mode = ref<'ONLINE' | 'OFFLINE' | 'FALLBACK'>('ONLINE');
+  const error = ref<string | null>(null);
+  const detectedMeta = ref<ParsedMeta>({ cleanText: '' });
+  
+  // Indikator UI: Sedang pakai mode apa? (Opsional, agar user tau)
+  const activeMode = ref<'ONLINE' | 'OFFLINE'>('OFFLINE');
 
-  // State tambahan untuk hasil parsing meta
-  const detectedMeta = ref<{ date?: Date, type?: 'INCOME' | 'EXPENSE' }>({});
+  /**
+   * Cek Koneksi Internet Browser (Realtime)
+   */
+  const checkOnlineStatus = (): boolean => {
+    return navigator.onLine; 
+  };
 
-  onMounted(() => {
-    OfflineNaiveBayes.loadModel();
-    mode.value = navigator.onLine ? 'ONLINE' : 'OFFLINE';
-    window.addEventListener('offline', () => { mode.value = 'OFFLINE'; });
-    window.addEventListener('online', () => { mode.value = 'ONLINE'; });
-  });
+  /**
+   * Helper: Jalankan AI Offline (Naive Bayes)
+   */
+  const runOfflineAI = async (cleanText: string) => {
+    console.log('[AI Strategy] Menggunakan Mode OFFLINE (Naive Bayes)...');
+    activeMode.value = 'OFFLINE';
+    
+    // Pastikan model dimuat dulu
+    await OfflineNaiveBayes.loadModel();
+    return OfflineNaiveBayes.predict(cleanText);
+  };
 
-  const processText = async (text: string): Promise<any[]> => {
+  /**
+   * Strategi Hybrid Real-time
+   */
+  const processText = async (text: string) => {
     isProcessing.value = true;
-    let results = [];
+    error.value = null;
     
-    // 1. SMART PARSING: Ekstrak Tanggal & Tipe dulu
-    const { cleanText, date, type } = SmartParser.extractMeta(text);
-    
-    // Simpan meta untuk dipakai di UI (TransactionForm) nanti
-    detectedMeta.value = { date, type };
-    
-    console.log(`[Smart Parser] Teks Bersih: "${cleanText}" | Date: ${date} | Type: ${type}`);
+    // 1. Pre-processing
+    detectedMeta.value = SmartParser.extractMeta(text);
+    const textToProcess = detectedMeta.value.cleanText;
 
     try {
-      // Gunakan CLEAN TEXT untuk dikirim ke AI (biar AI gak bingung sama tanggal)
-      if (navigator.onLine) {
-        try {
-          results = await GeminiAI.parse(cleanText);
-          if (!results?.length) throw new Error("Empty");
-          mode.value = 'ONLINE';
-        } catch (error) {
-          console.warn('Fallback Offline...');
-          mode.value = 'FALLBACK';
-          results = OfflineNaiveBayes.predict(cleanText);
-        }
-      } else {
-        mode.value = 'OFFLINE';
-        results = OfflineNaiveBayes.predict(cleanText);
+      // 2. CEK KONEKSI FISIK
+      // Jika kabel internet putus / Wifi mati -> Langsung Offline
+      if (!checkOnlineStatus()) {
+        console.warn('[AI Strategy] Tidak ada koneksi internet.');
+        return await runOfflineAI(textToProcess);
       }
 
-      if (!results || results.length === 0) throw new Error("AI Gagal.");
-      return results;
+      // 3. COBA GEMINI (ONLINE)
+      // Kita coba tembak server Google.
+      try {
+        console.log('[AI Strategy] Mencoba Gemini ONLINE...');
+        
+        // Race Condition: Kalau Gemini loading lebih dari 5 detik, kita anggap timeout & switch offline
+        const result = await Promise.race([
+          GeminiAI.parse(textToProcess),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
+        ]);
 
-    } catch (err) {
-      alert('Gagal memproses data.');
+        // Jika berhasil sampai sini, berarti Online lancar & Kuota aman
+        activeMode.value = 'ONLINE';
+        return result;
+
+      } catch (err: any) {
+        // 4. PENANGANAN ERROR "CERDAS" (FALLBACK)
+        // Masuk ke sini jika: 
+        // - Kuota Habis (Error 429)
+        // - API Key Salah (Error 403)
+        // - Koneksi RTO/Timeout
+        // - Jaringan tidak stabil (Failed to fetch)
+        
+        const errMsg = err.message || '';
+        console.warn(`[AI Strategy] Gagal Online (${errMsg}). Mengalihkan ke Offline...`);
+
+        // Apapun alasannya gagal online, JANGAN BERHENTI. 
+        // Langsung oper ke AI Offline.
+        return await runOfflineAI(textToProcess);
+      }
+
+    } catch (e) {
+      // Safety net terakhir jika Offline AI pun error (sangat jarang)
+      console.error('[AI Strategy] Critical Error:', e);
+      alert('Gagal memproses data baik Online maupun Offline.');
       return [];
+      
     } finally {
       isProcessing.value = false;
     }
   };
 
   return {
-    isProcessing,
     processText,
-    mode,
-    detectedMeta 
+    isProcessing,
+    error,
+    detectedMeta,
+    activeMode // Anda bisa bind ini ke UI untuk menampilkan badge "Online/Offline"
   };
 }

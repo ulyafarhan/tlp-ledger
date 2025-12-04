@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const API_KEY = "AIzaSyCJNLIXkzhJ196GGSFL2Iw2hfOA_L81Ii0"; 
+const API_KEY = "AIzaSyD0z3TJZlDDOiAyKwgv1Ey6qORicJj265I"; 
 
 export const GeminiAI = {
   async parse(text: string) {

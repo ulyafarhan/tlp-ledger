@@ -9,8 +9,46 @@ export interface ParsedMeta {
 
 export const SmartParser = {
   /**
+   * [Wajib Ada] Tokenizer: Memecah kalimat menjadi array kata
+   */
+  tokenize(text: string): string[] {
+    if (!text) return [];
+    // Pisahkan spasi, tapi pertahankan alphanumeric, dot, comma, dash
+    return text.toLowerCase()
+      .replace(/[^a-z0-9\.,\-]/g, ' ') 
+      .split(/\s+/)
+      .filter(t => t.length > 0);
+  },
+
+  /**
+   * [FIX] Helper Parse Harga (Mengatasi 'ribu' dan 'k')
+   */
+  parsePrice(text: string): number {
+      if (!text) return 0;
+      
+      let clean = text.toLowerCase().replace(/rp\.?/g, '').trim();
+      let multiplier = 1;
+      
+      // 1. Deteksi Multiplier (PENTING: Gunakan RegEx word boundary untuk 'ribu')
+      if (/\brb\b|\bk\b|\bribu\b|\brebu\b/i.test(clean)) {
+          multiplier = 1000;
+          // Hapus semua penanda ribuan secara spesifik
+          clean = clean.replace(/\b(rb|k|ribu|rebu)\b/g, ''); 
+      } else if (/\bjt\b|\bjuta\b/i.test(clean)) {
+          multiplier = 1000000;
+          clean = clean.replace(/\b(jt|juta)\b/g, '');
+      }
+      
+      // 2. Bersihkan Angka
+      // Hapus titik/koma pemisah ribuan (Misal: 10.000 -> 10000)
+      // Jaga titik jika ada koma (Misal: 10,5 -> 10.5)
+      clean = clean.replace(/\./g, '').replace(/,/g, '.');
+      
+      return (parseFloat(clean) || 0) * multiplier;
+  },
+
+  /**
    * 1. PRE-PROCESSING: Analisis Awal (Tanggal & Tipe)
-   * Memisahkan informasi tanggal/tipe dari teks barang agar AI fokus ke barang saja.
    */
   extractMeta(text: string): ParsedMeta {
     let cleanText = text;
@@ -34,7 +72,6 @@ export const SmartParser = {
     }
 
     // B. DETEKSI TANGGAL (Basic Regex untuk format Indonesia)
-    // Contoh: "18 nov", "18 november", "tgl 18"
     const dateRegex = /(\d{1,2})\s*(jan|feb|mar|apr|mei|jun|jul|agu|sep|okt|nov|des)[a-z]*\s*(\d{2,4})?/i;
     const match = cleanText.match(dateRegex);
 
@@ -76,8 +113,7 @@ export const SmartParser = {
   },
 
   /**
-   * 2. POST-PROCESSING: Koreksi Angka
-   * Memperbaiki "21.000rb" menjadi 21000
+   * 2. POST-PROCESSING: Koreksi Angka (Tetap dipertahankan)
    */
   fixNumber(rawPrice: number, originalWord?: string): number {
     if (!originalWord) return rawPrice;
@@ -85,13 +121,9 @@ export const SmartParser = {
     const lowerWord = originalWord.toLowerCase();
 
     // Deteksi pola redundan: Ada titik ribuan (ex: 21.xxx) DAN ada suffix (rb/k)
-    // Regex: Digit + Titik + 3 Digit + (rb/k/ribu)
-    // Contoh: 21.000rb
     const redundantPattern = /(\d+)\.(\d{3})\s*(rb|k|ribu|rebu)/i;
     
     if (redundantPattern.test(lowerWord)) {
-        // Jika pola ini ketemu, buang suffix-nya, ambil angkanya saja
-        // 21.000rb -> 21000
         const clean = lowerWord.replace(/rb|k|ribu|rebu/g, '').replace(/\./g, '');
         return parseFloat(clean);
     }
