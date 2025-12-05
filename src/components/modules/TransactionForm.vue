@@ -3,7 +3,7 @@ import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router';
 import { 
   Plus, Trash2, Save, Loader2, Wand2, Calendar as CalendarIcon, 
-  Package, StickyNote, Receipt, Sparkles, BadgeCheck, AlertTriangle 
+  Package, StickyNote, Receipt, Sparkles, BadgeCheck 
 } from 'lucide-vue-next'
 import { formatRupiah } from '@/lib/format'
 import { useAI } from '@/composables/useAI'
@@ -19,14 +19,13 @@ import {
   fromDate 
 } from '@internationalized/date'
 
-// Shadcn Components
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Calendar } from '@/components/ui/calendar'
@@ -37,12 +36,11 @@ const route = useRoute();
 const router = useRouter();
 
 const isSubmitting = ref(false)
-const isDeleting = ref(false) // State untuk loading hapus
+const isDeleting = ref(false)
 const showAIDialog = ref(false)
 const rawAIText = ref('')
 const { processText, isProcessing: isAIProcessing, detectedMeta } = useAI();
 
-// State Edit Mode (null = Create, number = Edit)
 const editId = ref<number | null>(null);
 
 const dateValue = ref<DateValue | undefined>(today(getLocalTimeZone()))
@@ -66,7 +64,6 @@ const grandTotal = computed(() => {
   return items.value.reduce((sum, item) => sum + (item.quantity * item.pricePerUnit), 0)
 })
 
-// === LOGIC AI CATATAN ===
 const suggestedNote = computed(() => {
   if (!items.value[0].itemName) return 'Lengkapi item untuk saran.';
   const cats = [...new Set(items.value.map(i => i.category))].join(', ');
@@ -78,44 +75,38 @@ const applySuggestion = () => {
   if (suggestedNote.value) header.notes = suggestedNote.value;
 };
 
-// === LOGIC LOAD DATA (EDIT MODE) ===
 const checkEditMode = async () => {
   const queryId = route.query.id;
   
   if (queryId) {
     try {
       const id = Number(queryId);
-      // Panggil Service Logic
       const data = await TransactionLogic.loadForEdit(id);
       
       if (!data || !data.header) throw new Error("Data tidak ditemukan");
 
-      // 1. Set ID & Header
       editId.value = id;
       header.type = data.header.type;
       header.notes = data.header.notes || '';
       
-      // 2. Set Tanggal (Handle konversi string/date object)
       try {
         dateValue.value = fromDate(new Date(data.header.date), getLocalTimeZone());
       } catch (e) {
         dateValue.value = today(getLocalTimeZone());
       }
 
-      // 3. Set Items (PENTING: Konversi ke Number agar tidak 0/string)
       if (data.details && data.details.length > 0) {
         items.value = data.details.map(d => ({
           itemName: d.itemName,
-          quantity: Number(d.quantity), // Paksa jadi number
-          pricePerUnit: Number(d.pricePerUnit), // Paksa jadi number
+          quantity: Number(d.quantity),
+          pricePerUnit: Number(d.pricePerUnit),
           category: d.category || 'Umum'
         }));
       }
 
     } catch (e) {
       console.error("Gagal load edit:", e);
-      alert("Transaksi tidak ditemukan atau rusak.");
-      router.replace('/input'); // Bersihkan URL
+      router.replace('/input');
       resetForm();
     }
   } else {
@@ -134,25 +125,33 @@ const resetForm = () => {
 onMounted(checkEditMode);
 watch(() => route.query.id, checkEditMode);
 
-// === ACTIONS ===
-
 const addItem = () => items.value.push({ itemName: '', quantity: 1, pricePerUnit: 0, category: 'Umum' })
 const removeItem = (index: number) => { if (items.value.length > 1) items.value.splice(index, 1) }
 const useExample = (text: string) => rawAIText.value = text
 
-// AI Parser
 const runAIParser = async () => {
   if (!rawAIText.value) return;
   try {
     const results = await processText(rawAIText.value);
-    if (results.length > 0) {
-      items.value = results.map((res: any) => ({
-        itemName: res.itemName,
-        quantity: Number(res.quantity) || 1,
-        pricePerUnit: Number(res.price) / (Number(res.quantity) || 1), 
-        category: 'Umum',
-        totalPrice: Number(res.price)
-      }));
+    
+    if (results && results.length > 0) {
+      items.value = results.map((res: any) => {
+        const qty = Number(res.quantity) || 1;
+        const totalOrUnit = Number(res.price) || 0;
+        
+        // AI Logic: Jika price besar (misal 50.000) dan qty 2, asumsikan itu harga total jika dari NaiveBayes
+        // Tapi kita buat aman: Harga AI biasanya per konteks.
+        // Di sini kita set pricePerUnit.
+        const pricePerUnit = totalOrUnit / qty; 
+
+        return {
+          itemName: res.itemName,
+          quantity: qty,
+          pricePerUnit: pricePerUnit > 0 ? pricePerUnit : 0, 
+          category: 'Umum'
+        };
+      });
+
       if (detectedMeta.value.type) header.type = detectedMeta.value.type;
       if (detectedMeta.value.date) dateValue.value = fromDate(detectedMeta.value.date, getLocalTimeZone());
       
@@ -160,7 +159,7 @@ const runAIParser = async () => {
       showAIDialog.value = false;
       rawAIText.value = '';
     } else {
-      alert('AI belum mengenali pola. Gunakan format: "Nama Barang 2pcs 50rb"');
+      alert('AI belum mengenali pola. Silakan input manual.');
     }
   } catch (e) {
     console.error(e);
@@ -168,7 +167,6 @@ const runAIParser = async () => {
   }
 }
 
-// Simpan / Update
 const submitTransaction = async () => {
   if (items.value.some(i => !i.itemName)) return alert('Nama item wajib diisi!');
   if (!dateValue.value) return alert('Tanggal wajib diisi!');
@@ -178,24 +176,37 @@ const submitTransaction = async () => {
   try {
     const finalDate = dateValue.value.toDate(getLocalTimeZone());
 
+    // --- PERBAIKAN INTI: Mapping Item dan Menambahkan Field 'totalPrice' ---
+    const finalDetails = items.value.map(item => {
+        const qty = Number(item.quantity) || 1;
+        const price = Number(item.pricePerUnit) || 0;
+        
+        return {
+            itemName: item.itemName,
+            quantity: qty,
+            pricePerUnit: price,
+            category: item.category,
+            totalPrice: qty * price 
+        };
+    });
+    // --- AKHIR PERBAIKAN INTI ---
+
     await TransactionLogic.saveOrUpdate(
       {
         header: {
           date: finalDate,
           type: header.type,
           notes: header.notes,
-          totalAmount: totalAmount
+          totalAmount: grandTotal.value
         },
-        details: items.value
+        details: finalDetails // Menggunakan array finalDetails yang sudah lengkap
       },
       editId.value || undefined
     );
     
     if (editId.value) {
-      // alert('Data berhasil diperbarui!'); // Opsional
       router.push('/report'); 
     } else {
-      // alert('Data berhasil disimpan!'); // Opsional
       resetForm();
     }
   } catch (e) {
@@ -206,7 +217,6 @@ const submitTransaction = async () => {
   }
 }
 
-// Hapus Transaksi (Dari Form Edit)
 const deleteTransaction = async () => {
   if (!editId.value) return;
   if (!confirm('Yakin ingin MENGHAPUS transaksi ini permanen?')) return;
@@ -279,7 +289,7 @@ const deleteTransaction = async () => {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent class="w-auto p-0 bg-white z-[50]" align="start">
-                    <Calendar v-model="dateValue" initial-focus />
+                    <Calendar v-model:value="dateValue" initial-focus /> 
                   </PopoverContent>
                 </Popover>
               </div>
@@ -415,7 +425,9 @@ const deleteTransaction = async () => {
             {{ isDeleting ? 'Menghapus...' : 'Hapus' }}
           </Button>
         </div>
-        <div v-else></div> <div class="flex items-center gap-3">
+        <div v-else></div> 
+        
+        <div class="flex items-center gap-3">
           <div class="flex flex-col items-end mr-2">
             <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Akhir</span>
             <span class="text-lg font-bold text-slate-900 font-mono leading-none">{{ formatRupiah(grandTotal) }}</span>
@@ -431,7 +443,7 @@ const deleteTransaction = async () => {
     </div>
 
     <Dialog v-model:open="showAIDialog">
-      <DialogContent class="sm:max-w-lg w-full p-0 overflow-hidden gap-0 bg-white border-0 shadow-2xl z-[150] rounded-3xl border border-slate-100 shadow-xl data-[state=open]:sm:top-[50%] data-[state=open]:sm:translate-y-[-50%] data-[state=open]:slide-in-from-bottom-4 data-[state=open]:sm:slide-in-from-bottom-0"> 
+      <DialogContent class="sm:max-w-lg w-full p-0 overflow-hidden gap-0 bg-white border-0 shadow-2xl z-[150] rounded-3xl border border-slate-100 shadow-xl"> 
         <div class="bg-gradient-to-r from-indigo-600 to-violet-600 p-6 text-white relative overflow-hidden">
           <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white opacity-10 rounded-full blur-xl"></div>
           <DialogTitle class="flex items-center gap-2 text-xl font-bold relative z-10"><Sparkles class="w-5 h-5 text-yellow-300" /> AI Magic Input</DialogTitle>

@@ -10,16 +10,21 @@ import {
   Title,
   Tooltip,
   Legend,
-  Filler // [NEW] Untuk efek gradasi (opsional)
+  Filler, 
+  ChartOptions // [PERBAIKAN 1]: Import ChartOptions untuk typing
 } from 'chart.js';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   labels: string[];
   incomeData: number[];
   expenseData: number[];
-}>();
+}>(), {
+  labels: () => [],
+  incomeData: () => [],
+  expenseData: () => []
+});
 
 // Helper untuk format angka ringkas (1jt, 500rb) di sumbu Y
 const formatCompact = (value: number) => {
@@ -74,7 +79,8 @@ const chartData = computed(() => ({
   ]
 }));
 
-const options = {
+// [PERBAIKAN 2]: Berikan tipe data eksplisit ChartOptions<'line'>
+const options: ChartOptions<'line'> = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
@@ -154,6 +160,9 @@ const options = {
 
 <template>
   <div class="w-full h-full p-2 relative">
-    <Line :data="chartData" :options="options" />
+    <Line v-if="chartData.labels.length > 0" :data="chartData" :options="options" />
+    <div v-else class="flex items-center justify-center h-full text-slate-400 text-sm">
+      Belum ada data grafik
+    </div>
   </div>
 </template>
