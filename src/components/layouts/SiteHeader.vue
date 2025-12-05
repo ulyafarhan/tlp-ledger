@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { appStore } from '@/stores/useAppStore'; // [NEW] Ambil data store
+import { appStore } from '@/stores/useAppStore'; 
 import { LayoutDashboard, PenTool, FileText, Menu, Settings, LogOut, Store, User } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { 
@@ -16,7 +16,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuGroup
@@ -43,7 +42,6 @@ const isTabActive = (routeName: string) => {
   return route.name === routeName;
 };
 
-// [NEW] Computed Data untuk Tampilan User
 const displayName = computed(() => appStore.nickname || appStore.ownerName || 'Pengguna');
 const shopName = computed(() => appStore.shopName || 'Toko Saya');
 
@@ -54,7 +52,7 @@ const userInitials = computed(() => {
 </script>
 
 <template>
-  <header class="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/60">
+  <header class="sticky top-0 z-40 w-full border-b bg-white">
     <div class="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
       <div class="flex items-center gap-2.5 cursor-pointer group" @click="navigateTo('/')">
         <div class="flex flex-col">
