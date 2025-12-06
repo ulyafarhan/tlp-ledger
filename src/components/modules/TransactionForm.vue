@@ -137,12 +137,8 @@ const runAIParser = async () => {
     if (results && results.length > 0) {
       items.value = results.map((res: any) => {
         const qty = Number(res.quantity) || 1;
-        const totalOrUnit = Number(res.price) || 0;
         
-        // AI Logic: Jika price besar (misal 50.000) dan qty 2, asumsikan itu harga total jika dari NaiveBayes
-        // Tapi kita buat aman: Harga AI biasanya per konteks.
-        // Di sini kita set pricePerUnit.
-        const pricePerUnit = totalOrUnit / qty; 
+        const pricePerUnit = Number(res.price) || 0; 
 
         return {
           itemName: res.itemName,
@@ -176,7 +172,6 @@ const submitTransaction = async () => {
   try {
     const finalDate = dateValue.value.toDate(getLocalTimeZone());
 
-    // --- PERBAIKAN INTI: Mapping Item dan Menambahkan Field 'totalPrice' ---
     const finalDetails = items.value.map(item => {
         const qty = Number(item.quantity) || 1;
         const price = Number(item.pricePerUnit) || 0;
@@ -189,7 +184,6 @@ const submitTransaction = async () => {
             totalPrice: qty * price 
         };
     });
-    // --- AKHIR PERBAIKAN INTI ---
 
     await TransactionLogic.saveOrUpdate(
       {
@@ -199,7 +193,7 @@ const submitTransaction = async () => {
           notes: header.notes,
           totalAmount: grandTotal.value
         },
-        details: finalDetails // Menggunakan array finalDetails yang sudah lengkap
+        details: finalDetails 
       },
       editId.value || undefined
     );
@@ -452,7 +446,7 @@ const deleteTransaction = async () => {
         <div class="p-6 space-y-5">
           <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-800 text-xs font-medium space-y-1">
             <p class="font-semibold flex items-center gap-1"><BadgeCheck class="w-3.5 h-3.5 text-indigo-600" /> Tips Akurasi Maksimal:</p>
-            <p>Gunakan format: <code class="bg-indigo-100 px-1 py-0.5 rounded text-xs font-mono">2 sak semen 65rb</code> (QTY + ITEM + HARGA).</p>
+            <p>Gunakan format: <code class="bg-indigo-100 px-1 py-0.5 rounded text-xs font-mono">2 sak semen 65rb</code> (QTY + ITEM + HARGA TOTAL).</p>
           </div>
           <div class="relative group">
             <Textarea v-model="rawAIText" placeholder="Contoh: Beli 2 sak semen 65rb dan 1kg paku 15rb buat proyek Pak Budi" class="min-h-[160px] text-base p-4 leading-relaxed bg-slate-50 border-slate-200 focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-xl" />

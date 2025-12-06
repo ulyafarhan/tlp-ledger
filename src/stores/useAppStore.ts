@@ -1,14 +1,14 @@
 import { reactive, watch } from 'vue';
 
-const STORE_KEY = 'tlp_app_settings';
+const STORE_KEY = 'finance_ledger_settings'; 
 
-// Default State
 const defaultState = {
   nickname: '', 
   shopName: '',
   ownerName: '',
   phone: '',
   address: '',
+  hasSeenTutorial: false,
 };
 
 const savedState = localStorage.getItem(STORE_KEY);
@@ -20,13 +20,17 @@ export const appStore = reactive({
   ownerName: initialSettings.ownerName || '',
   phone: initialSettings.phone || '',
   address: initialSettings.address || '',
+  hasSeenTutorial: initialSettings.hasSeenTutorial || false,
 
   updateSettings(data: Partial<typeof defaultState>) {
     Object.assign(this, data);
+  },
+
+  completeTutorial() {
+    this.hasSeenTutorial = true;
   }
 });
 
-// Auto-save ke LocalStorage setiap ada perubahan
 watch(
   () => ({
     nickname: appStore.nickname,
@@ -34,6 +38,7 @@ watch(
     ownerName: appStore.ownerName,
     phone: appStore.phone,
     address: appStore.address,
+    hasSeenTutorial: appStore.hasSeenTutorial,
   }),
   (settings) => {
     localStorage.setItem(STORE_KEY, JSON.stringify(settings));

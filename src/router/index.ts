@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-// Import dari folder VIEWS sekarang
+// Import views
 import DashboardView from '@/views/DashboardView.vue'
 import ReportView from '@/views/ReportView.vue'
 import EntryView from '@/views/EntryView.vue'

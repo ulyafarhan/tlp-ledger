@@ -1,6 +1,7 @@
 // src/models/AIProcessor.ts
 // Ini adalah "Model" logika, bukan model database.
 
+// Processor Teks: Membersihkan dan memformat input/output AI
 export class TextProcessor {
   // Logic membersihkan teks sebelum dikirim ke AI
   static cleanInput(text: string): string {

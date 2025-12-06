@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Tasimi-Lite Ledger',
-        short_name: 'T-LP',
+        name: 'Finance Ledger',
+        short_name: 'Finance Ledger',
         description: 'Offline AI Ledger for UMKM',
         theme_color: '#ffffff',
         icons: [

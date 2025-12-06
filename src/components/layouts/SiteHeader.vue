@@ -97,7 +97,7 @@ const userInitials = computed(() => {
                   T
                 </div>
                 <div>
-                  <SheetTitle>T-LP Ledger</SheetTitle>
+                  <SheetTitle>Finance Ledger</SheetTitle>
                   <SheetDescription>Menu Utama</SheetDescription>
                 </div>
               </div>

@@ -18,7 +18,7 @@ import {
 // Date Handling (Shadcn UI uses @internationalized/date)
 import { 
   DateFormatter, getLocalTimeZone, today, 
-  type DateValue // Hapus CalendarDate karena tidak terpakai
+  type DateValue, CalendarDate
 } from '@internationalized/date';
 
 // Shadcn UI Components
@@ -27,10 +27,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { RangeCalendar } from '@/components/ui/range-calendar';
 
-// [FIX] Definisikan tipe DateRange secara eksplisit, HAPUS: import type { DateRange } from 'radix-vue';
 interface DateRangeState {
-  start: DateValue | undefined;
-  end: DateValue | undefined;
+  start: CalendarDate | undefined;
+  end: CalendarDate | undefined;
 }
 
 
@@ -42,8 +41,8 @@ const showPreview = ref(false);
 const reportData = ref<any[]>([]);
 
 // State untuk DatePicker (menggunakan tipe yang telah diperbaiki)
-const dateRange = ref<DateRangeState>({
-  start: undefined,
+const dateRange = ref<DateRange>({
+  start: today(getLocalTimeZone()), // Tanggal awal (hari ini)
   end: undefined,
 })
 
@@ -52,7 +51,7 @@ const uiDateFormatter = new DateFormatter('id-ID', {
   day: 'numeric', month: 'short', year: 'numeric' 
 });
 
-// Helper: Konversi DateValue (Shadcn) ke Native JS Date (untuk Database/Logic)
+// Helper: Konversi CalendarDate (Shadcn) ke Native JS Date (untuk Database/Logic)
 const toNativeDate = (d: DateValue): Date => {
   return d.toDate(getLocalTimeZone());
 };
@@ -114,19 +113,19 @@ const setPreset = (type: 'thisMonth' | 'lastMonth' | 'thisYear') => {
   const todayDate = today(getLocalTimeZone());
   
   if (type === 'thisMonth') {
-    dateRange.value = { 
-      start: todayDate.set({ day: 1 }), 
-      end: todayDate 
-    };
+    dateRange.value.start = todayDate.set({ day: 1 });
+    dateRange.value.end = todayDate;
   } else if (type === 'lastMonth') {
     const startLastMonth = todayDate.subtract({ months: 1 }).set({ day: 1 });
     const endLastMonth = todayDate.set({ day: 1 }).subtract({ days: 1 });
-    dateRange.value = { start: startLastMonth, end: endLastMonth };
+    dateRange.value.start = startLastMonth;
+    dateRange.value.end = endLastMonth;
   } else if (type === 'thisYear') {
-    dateRange.value = { 
-      start: todayDate.set({ month: 1, day: 1 }), 
-      end: todayDate 
-    };
+    dateRange.value.start = todayDate.set({ month: 1, day: 1 });
+    dateRange.value.end = todayDate;
+  } else {
+    dateRange.value.start = undefined;
+    dateRange.value.end = undefined;
   }
   
   // Otomatis fetch setelah pilih preset
@@ -173,7 +172,7 @@ onMounted(() => {
             <PopoverTrigger as-child>
               <Button variant="outline" class="w-full sm:w-[260px] justify-start text-left font-normal bg-white border-slate-300">
                 <CalendarIcon class="mr-2 h-4 w-4 text-slate-500" />
-                <span v-if="dateRange.start">
+                <span v-if="dateRange.start && dateRange.end">
                   {{ uiDateFormatter.format(dateRange.start.toDate(getLocalTimeZone())) }} 
                   <span v-if="dateRange.end"> - {{ uiDateFormatter.format(dateRange.end.toDate(getLocalTimeZone())) }}</span>
                 </span>
@@ -184,6 +183,7 @@ onMounted(() => {
             <PopoverContent class="w-auto p-0" align="end">
               <div class="flex items-center gap-2 p-2 border-b bg-slate-50/50">
                 <Button variant="ghost" size="sm" class="text-xs h-7" @click="setPreset('thisMonth')">Bulan Ini</Button>
+                <Button variant="ghost" size="sm" class="text-xs h-7" @click="setPreset('thisYear')">Tahun Ini</Button>
                 <Button variant="ghost" size="sm" class="text-xs h-7" @click="setPreset('lastMonth')">Bulan Lalu</Button>
               </div>
               <RangeCalendar v-model="dateRange" initial-focus :number-of-months="1" class="p-2" />

@@ -1,10 +1,30 @@
 <script setup lang="ts">
-import SiteHeader from '@/components/layouts/SiteHeader.vue';
+import { ref } from 'vue';
 import { RouterView } from 'vue-router';
+import SiteHeader from '@/components/layouts/SiteHeader.vue';
+import SplashScreen from '@/components/modules/SplashScreen.vue';
+import AppTutorial from '@/components/modules/AppTutorial.vue';
+import { appStore } from '@/stores/useAppStore';
+
+const showSplash = ref(true);
+const showTutorial = ref(false);
+
+const handleSplashFinish = () => {
+  showSplash.value = false;
+  if (!appStore.hasSeenTutorial) {
+    setTimeout(() => {
+      showTutorial.value = true;
+    }, 500);
+  }
+};
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50/50 font-sans antialiased">
+  <SplashScreen v-if="showSplash" @finish="handleSplashFinish" />
+
+  <AppTutorial v-if="showTutorial" @close="showTutorial = false" />
+
+  <div :class="['min-h-screen bg-slate-50/50 font-sans antialiased', showSplash ? 'h-screen overflow-hidden' : '']">
     <SiteHeader />
     
     <main class="container mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-10">

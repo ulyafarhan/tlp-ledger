@@ -96,6 +96,6 @@ export function useAI() {
     isProcessing,
     error,
     detectedMeta,
-    activeMode // Anda bisa bind ini ke UI untuk menampilkan badge "Online/Offline"
+    activeMode 
   };
 }

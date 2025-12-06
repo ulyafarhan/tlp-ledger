@@ -76,7 +76,7 @@ const exportBackup = async () => {
       meta: {
         version: '2.0', 
         exportedAt: new Date().toISOString(),
-        appName: 'T-LP Ledger'
+        appName: 'Finance Ledger'
       },
       settings: settingsToSave,
       data: { headers, details }
