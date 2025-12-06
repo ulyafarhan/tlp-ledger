@@ -172,7 +172,6 @@ const submitTransaction = async () => {
   try {
     const finalDate = dateValue.value.toDate(getLocalTimeZone());
 
-    // Mapping detail item agar bersih
     const finalDetails = items.value.map(item => {
         const qty = Number(item.quantity) || 1;
         const price = Number(item.pricePerUnit) || 0;
@@ -214,6 +213,7 @@ const submitTransaction = async () => {
       router.push('/report'); 
     } else {
       resetForm();
+      alert('Transaksi berhasil disimpan!');
     }
   } catch (e) {
     console.error(e);
