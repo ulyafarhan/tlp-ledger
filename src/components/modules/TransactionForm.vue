@@ -172,6 +172,7 @@ const submitTransaction = async () => {
   try {
     const finalDate = dateValue.value.toDate(getLocalTimeZone());
 
+    // Mapping detail item agar bersih
     const finalDetails = items.value.map(item => {
         const qty = Number(item.quantity) || 1;
         const price = Number(item.pricePerUnit) || 0;
@@ -185,18 +186,29 @@ const submitTransaction = async () => {
         };
     });
 
-    await TransactionLogic.saveOrUpdate(
-      {
-        header: {
+    if (editId.value) {
+      await TransactionLogic.saveOrUpdate(
+        {
+          header: {
+            date: finalDate,
+            type: header.type,
+            notes: header.notes,
+            totalAmount: grandTotal.value
+          },
+          details: finalDetails 
+        },
+        editId.value
+      );
+    } else {
+      await TransactionLogic.saveAsSeparateTransactions(
+        {
           date: finalDate,
           type: header.type,
-          notes: header.notes,
-          totalAmount: grandTotal.value
+          notes: header.notes || ''
         },
-        details: finalDetails 
-      },
-      editId.value || undefined
-    );
+        finalDetails
+      );
+    }
     
     if (editId.value) {
       router.push('/report'); 
